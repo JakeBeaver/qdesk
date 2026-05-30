@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import process from "node:process";
-import { startListening } from "./chord-utils.js";
+import { normalizeChord, startListening } from "./chord-utils.js";
 import { setScreenHue } from "./screen-hue.js";
 import {
   activateWindowByHandle,
@@ -10,11 +10,11 @@ import {
 } from "./window-utils.js";
 
 // Configure this chord at the top of file.
-const DEFAULT_DROP_CHORD = "ctrl+alt+r";
-const DEFAULT_REMOVE_CHORD = "ctrl+alt+d";
+const DEFAULT_ADD_CHORD = "win+ctrl+a";
+const DEFAULT_DROP_CHORD = "win+ctrl+d";
 
 function normalizeChordInput(chord: string): string {
-  return chord.trim().toLowerCase();
+  return normalizeChord(chord.trim().toLowerCase());
 }
 
 function getCliArgValue(flag: string): string | undefined {
@@ -33,10 +33,10 @@ function getCliArgValue(flag: string): string | undefined {
 }
 
 const ADD_CHORD = normalizeChordInput(
-  getCliArgValue("-a") ?? DEFAULT_DROP_CHORD,
+  getCliArgValue("-a") ?? DEFAULT_ADD_CHORD,
 );
 const DROP_CHORD = normalizeChordInput(
-  getCliArgValue("-d") ?? DEFAULT_REMOVE_CHORD,
+  getCliArgValue("-d") ?? DEFAULT_DROP_CHORD,
 );
 
 if (ADD_CHORD === DROP_CHORD) {

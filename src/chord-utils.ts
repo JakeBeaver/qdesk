@@ -38,7 +38,7 @@ export type StartListeningOptions = {
   onChord: (chord: string, stopPropagating: () => void) => void;
 };
 
-function normalizeChord(chord: string): string | null {
+export function normalizeChord(chord: string): string | null {
   const parts = chord
     .split("+")
     .map((part) => part.trim().toLowerCase())
