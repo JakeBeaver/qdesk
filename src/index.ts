@@ -14,6 +14,9 @@ const bindings = new Map<string, WindowInfo>();
 
 let activeRecording: WindowInfo | undefined;
 let awaitingChordRemoval = false;
+const toolWindowAtStartup = getActiveWindowHandleAndName() ?? undefined;
+console.log("[info] Tool window at startup:", toolWindowAtStartup);
+let removalReturnWindow: WindowInfo | undefined;
 
 const listener = startListening({
   onChord: (chord, stopPropagating) => {
@@ -60,6 +63,10 @@ const listener = startListening({
       }
 
       awaitingChordRemoval = true;
+      if (toolWindowAtStartup) {
+        activateWindowByHandle(toolWindowAtStartup.handle);
+      }
+
       console.log("[remove] Armed. Press the chord you want to remove.");
       printBindings();
       setScreenHue("remove");
