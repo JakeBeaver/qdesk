@@ -66,7 +66,7 @@ const listener = startListening({
         return stopPropagating();
       }
       bindings.set(chord, activeRecording);
-      console.log(`[recording] Bound ${chord} -> "${activeRecording.name}"`);
+      console.log(`[add] Bound ${chord} -> "${activeRecording.name}"`);
       activeRecording = undefined;
       setScreenHue("off");
       printBindings();
@@ -77,9 +77,9 @@ const listener = startListening({
       awaitingChordRemoval = false;
       setScreenHue("off");
       if (bindings.delete(chord)) {
-        console.log(`[remove] Removed binding for ${chord}`);
+        console.log(`[drop] Removed binding for ${chord}`);
       } else {
-        console.log(`[remove] No binding exists for ${chord}`);
+        console.log(`[drop] No binding exists for ${chord}`);
       }
       printBindings();
       return stopPropagating();
@@ -93,7 +93,7 @@ const listener = startListening({
         console.warn("[warn] No foreground window found to bind.");
       } else {
         console.log(
-          `[recording] Armed for "${activeRecording.name}". Waiting for next chord...`,
+          `[add] Armed for "${activeRecording.name}". Waiting for next chord...`,
         );
         setScreenHue("record");
       }
@@ -111,7 +111,7 @@ const listener = startListening({
         activateWindowByHandle(toolWindowAtStartup.handle);
       }
 
-      console.log("[remove] Armed. Press the chord you want to remove.");
+      console.log("[drop] Armed. Press the chord you want to remove.");
       printBindings();
       setScreenHue("remove");
       return stopPropagating();
@@ -122,14 +122,14 @@ const listener = startListening({
       const result = activateWindowByHandle(binding.handle);
       if (result === "missing") {
         console.error(
-          `[binding ${chord}] Window "${binding.name}" no longer exists, clearing binding.`,
+          `[switch ${chord}] Window "${binding.name}" no longer exists, clearing binding.`,
         );
         bindings.delete(chord);
       } else if (result === "activated") {
         console.log(`[binding ${chord}] Switched to "${binding.name}"`);
       } else {
         console.warn(
-          `[binding ${chord}] Activation failed for "${binding.name}"`,
+          `[switch ${chord}] Activation failed for "${binding.name}"`,
         );
       }
       return stopPropagating();
@@ -138,7 +138,7 @@ const listener = startListening({
 });
 
 function printBindings(): void {
-  console.log("\n[winswitcher] Current bindings:");
+  console.log("\n[qdesk] Current bindings:");
   if (bindings.size === 0) {
     console.log("  (none)");
   } else {
@@ -149,7 +149,7 @@ function printBindings(): void {
   console.log("");
 }
 
-console.log("[winswitcher] Starting...");
+console.log("[qdesk] Starting...");
 console.log(`  Adding a chord: ${ADD_CHORD}`);
 console.log(`  Dropping a chord: ${DROP_CHORD}`);
 console.log("  CLI overrides: -a <combo>, -d <combo>");

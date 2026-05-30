@@ -266,7 +266,7 @@ export function startListening(
   }
 
   function shutdown(): void {
-    console.log("\n[winswitcher] Shutting down...");
+    console.log("\n[qdesk] Shutting down...");
     if (keyboardHook) {
       UnhookWindowsHookEx(keyboardHook);
       keyboardHook = null;
