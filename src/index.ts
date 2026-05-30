@@ -1,5 +1,5 @@
-import process from "node:process";
 import { startListening } from "./chord-utils.js";
+import { toggleScreenHue } from "./screen-hue.js";
 import {
   activateWindowByHandle,
   getActiveWindowHandleAndName,
@@ -19,6 +19,7 @@ const listener = startListening({
       bindings.set(chord, activeRecording);
       console.log(`[recording] Bound ${chord} -> "${activeRecording.name}"`);
       activeRecording = undefined;
+      toggleScreenHue(false);
       printBindings();
       return stopPropagating();
     }
@@ -31,6 +32,7 @@ const listener = startListening({
         console.log(
           `[recording] Armed for "${activeRecording.name}". Waiting for next chord...`,
         );
+        toggleScreenHue(true);
       }
       return stopPropagating();
     }
@@ -69,7 +71,4 @@ function printBindings(): void {
 
 console.log("[winswitcher] Starting...");
 console.log(`  record chord: ${RECORD_CHORD}`);
-console.log("  press record chord, then next chord binds the active window");
-
-printBindings();
 listener.runMessageLoop();

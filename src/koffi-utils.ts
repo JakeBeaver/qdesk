@@ -1,6 +1,6 @@
 import koffi from "koffi";
 
-const HWND = koffi.pointer("HWND", koffi.opaque());
+export const HWND = koffi.pointer("HWND", koffi.opaque());
 const HHOOK = koffi.pointer("HHOOK", koffi.opaque());
 const HINSTANCE = koffi.pointer("HINSTANCE", koffi.opaque());
 const UINT = "uint32";
