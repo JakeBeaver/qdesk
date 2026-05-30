@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import process from "node:process";
 import { startListening } from "./chord-utils.js";
 import { setScreenHue } from "./screen-hue.js";
 import {
@@ -9,20 +10,61 @@ import {
 } from "./window-utils.js";
 
 // Configure this chord at the top of file.
-const RECORD_CHORD = "ctrl+alt+r";
-const REMOVE_CHORD = "ctrl+alt+d";
+const DEFAULT_DROP_CHORD = "ctrl+alt+r";
+const DEFAULT_REMOVE_CHORD = "ctrl+alt+d";
+
+function normalizeChordInput(chord: string): string {
+  return chord.trim().toLowerCase();
+}
+
+function getCliArgValue(flag: string): string | undefined {
+  const args = process.argv.slice(2);
+  const exact = args.find((arg) => arg.startsWith(`${flag}=`));
+  if (exact) {
+    return exact.slice(flag.length + 1);
+  }
+
+  const idx = args.indexOf(flag);
+  if (idx >= 0 && idx + 1 < args.length) {
+    return args[idx + 1];
+  }
+
+  return undefined;
+}
+
+const ADD_CHORD = normalizeChordInput(
+  getCliArgValue("-a") ?? DEFAULT_DROP_CHORD,
+);
+const DROP_CHORD = normalizeChordInput(
+  getCliArgValue("-d") ?? DEFAULT_REMOVE_CHORD,
+);
+
+if (ADD_CHORD === DROP_CHORD) {
+  console.warn(
+    `[warn] add and drop chords are identical (${ADD_CHORD}); behavior may conflict.`,
+  );
+}
 
 const bindings = new Map<string, WindowInfo>();
 
 let activeRecording: WindowInfo | undefined;
 let awaitingChordRemoval = false;
 const toolWindowAtStartup = getActiveWindowHandleAndName() ?? undefined;
-console.log("[info] Tool window at startup:", toolWindowAtStartup.name);
+console.log(
+  "[info] Tool window at startup:",
+  toolWindowAtStartup?.name ?? "(unknown)",
+);
 let removalReturnWindow: WindowInfo | undefined;
 
 const listener = startListening({
   onChord: (chord, stopPropagating) => {
     if (activeRecording) {
+      if ([ADD_CHORD, DROP_CHORD].includes(chord)) {
+        console.warn(
+          `[warn] Ignoring ${chord} chord during active recording to avoid conflicts.`,
+        );
+        return stopPropagating();
+      }
       bindings.set(chord, activeRecording);
       console.log(`[recording] Bound ${chord} -> "${activeRecording.name}"`);
       activeRecording = undefined;
@@ -43,7 +85,7 @@ const listener = startListening({
       return stopPropagating();
     }
 
-    if (chord === RECORD_CHORD) {
+    if (chord === ADD_CHORD) {
       awaitingChordRemoval = false;
       setScreenHue("off");
       activeRecording = getActiveWindowHandleAndName();
@@ -58,7 +100,7 @@ const listener = startListening({
       return stopPropagating();
     }
 
-    if (chord === REMOVE_CHORD) {
+    if (chord === DROP_CHORD) {
       if (activeRecording) {
         activeRecording = undefined;
         setScreenHue("off");
@@ -108,6 +150,7 @@ function printBindings(): void {
 }
 
 console.log("[winswitcher] Starting...");
-console.log(`  Recording a chord: ${RECORD_CHORD}`);
-console.log(`  Removing a chord: ${REMOVE_CHORD}`);
+console.log(`  Adding a chord: ${ADD_CHORD}`);
+console.log(`  Dropping a chord: ${DROP_CHORD}`);
+console.log("  CLI overrides: -a <combo>, -d <combo>");
 listener.runMessageLoop();
