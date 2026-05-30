@@ -2,6 +2,14 @@
   "name": "qdesk",
   "version": "1.0.0",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JakeBeaver/qdesk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JakeBeaver/qdesk/issues"
+  },
+  "homepage": "https://github.com/JakeBeaver/qdesk#readme",
   "bin": {
     "switcher": "dist/index.js"
   },
