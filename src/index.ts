@@ -1,5 +1,5 @@
 import { startListening } from "./chord-utils.js";
-import { toggleScreenHue } from "./screen-hue.js";
+import { setScreenHue } from "./screen-hue.js";
 import {
   activateWindowByHandle,
   getActiveWindowHandleAndName,
@@ -8,10 +8,12 @@ import {
 
 // Configure this chord at the top of file.
 const RECORD_CHORD = "ctrl+alt+r";
+const REMOVE_CHORD = "ctrl+alt+d";
 
 const bindings = new Map<string, WindowInfo>();
 
 let activeRecording: WindowInfo | undefined;
+let awaitingChordRemoval = false;
 
 const listener = startListening({
   onChord: (chord, stopPropagating) => {
@@ -19,12 +21,26 @@ const listener = startListening({
       bindings.set(chord, activeRecording);
       console.log(`[recording] Bound ${chord} -> "${activeRecording.name}"`);
       activeRecording = undefined;
-      toggleScreenHue(false);
+      setScreenHue("off");
+      printBindings();
+      return stopPropagating();
+    }
+
+    if (awaitingChordRemoval) {
+      awaitingChordRemoval = false;
+      setScreenHue("off");
+      if (bindings.delete(chord)) {
+        console.log(`[remove] Removed binding for ${chord}`);
+      } else {
+        console.log(`[remove] No binding exists for ${chord}`);
+      }
       printBindings();
       return stopPropagating();
     }
 
     if (chord === RECORD_CHORD) {
+      awaitingChordRemoval = false;
+      setScreenHue("off");
       activeRecording = getActiveWindowHandleAndName();
       if (!activeRecording) {
         console.warn("[warn] No foreground window found to bind.");
@@ -32,8 +48,21 @@ const listener = startListening({
         console.log(
           `[recording] Armed for "${activeRecording.name}". Waiting for next chord...`,
         );
-        toggleScreenHue(true);
+        setScreenHue("record");
       }
+      return stopPropagating();
+    }
+
+    if (chord === REMOVE_CHORD) {
+      if (activeRecording) {
+        activeRecording = undefined;
+        setScreenHue("off");
+      }
+
+      awaitingChordRemoval = true;
+      console.log("[remove] Armed. Press the chord you want to remove.");
+      printBindings();
+      setScreenHue("remove");
       return stopPropagating();
     }
 
@@ -71,4 +100,5 @@ function printBindings(): void {
 
 console.log("[winswitcher] Starting...");
 console.log(`  record chord: ${RECORD_CHORD}`);
+console.log(`  remove chord: ${REMOVE_CHORD}`);
 listener.runMessageLoop();

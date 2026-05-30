@@ -32,43 +32,46 @@ let hasWarnedMagFailure = false;
 let magInitialized = false;
 let activeHueBackend: "none" | "gamma" | "magnifier" = "none";
 
+export type ScreenHueMode = "off" | "record" | "remove";
+
 function clampScale(value: number): number {
   return Math.max(0.0, Math.min(1.0, value));
 }
 
 function buildGammaRamp(
-  on: boolean,
-  greenScaleOn: number,
-  blueScaleOn: number,
+  redScale: number,
+  greenScale: number,
+  blueScale: number,
 ): Buffer {
   // 3 channels * 256 entries * 2 bytes per uint16
   const ramp = Buffer.alloc(3 * 256 * 2);
 
-  const greenScale = on ? clampScale(greenScaleOn) : 1.0;
-  const blueScale = on ? clampScale(blueScaleOn) : 1.0;
+  const red = clampScale(redScale);
+  const green = clampScale(greenScale);
+  const blue = clampScale(blueScale);
 
   for (let i = 0; i < 256; i++) {
     const base = i * 257; // map 0..255 to 0..65535
 
-    const red = base;
-    const green = Math.max(0, Math.min(65535, Math.round(base * greenScale)));
-    const blue = Math.max(0, Math.min(65535, Math.round(base * blueScale)));
+    const redValue = Math.max(0, Math.min(65535, Math.round(base * red)));
+    const greenValue = Math.max(0, Math.min(65535, Math.round(base * green)));
+    const blueValue = Math.max(0, Math.min(65535, Math.round(base * blue)));
 
-    ramp.writeUInt16LE(red, i * 2);
-    ramp.writeUInt16LE(green, (256 + i) * 2);
-    ramp.writeUInt16LE(blue, (512 + i) * 2);
+    ramp.writeUInt16LE(redValue, i * 2);
+    ramp.writeUInt16LE(greenValue, (256 + i) * 2);
+    ramp.writeUInt16LE(blueValue, (512 + i) * 2);
   }
 
   return ramp;
 }
 
-function buildColorEffectMatrix(on: boolean): Buffer {
+function buildColorEffectMatrix(mode: ScreenHueMode): Buffer {
   // MAGCOLOREFFECT is a 5x5 float matrix.
   const matrix = Buffer.alloc(25 * 4);
 
-  const redScale = 1.0;
-  const greenScale = on ? 0.3 : 1.0;
-  const blueScale = on ? 0.18 : 1.0;
+  const redScale = mode === "record" ? 1.0 : mode === "remove" ? 0.35 : 1.0;
+  const greenScale = mode === "record" ? 0.3 : mode === "remove" ? 1.0 : 1.0;
+  const blueScale = mode === "record" ? 0.18 : mode === "remove" ? 0.35 : 1.0;
 
   const values = [
     redScale,
@@ -105,7 +108,7 @@ function buildColorEffectMatrix(on: boolean): Buffer {
   return matrix;
 }
 
-function tryApplyMagnifierHue(on: boolean): boolean {
+function tryApplyMagnifierHue(mode: ScreenHueMode): boolean {
   if (!MagInitialize || !MagSetFullscreenColorEffect) {
     return false;
   }
@@ -118,25 +121,31 @@ function tryApplyMagnifierHue(on: boolean): boolean {
     magInitialized = true;
   }
 
-  const matrix = buildColorEffectMatrix(on);
+  const matrix = buildColorEffectMatrix(mode);
   const ok = Number(MagSetFullscreenColorEffect(matrix));
   return ok !== 0;
 }
 
-export function toggleScreenHue(on: boolean): void {
+export function setScreenHue(mode: ScreenHueMode): void {
   const screenDc = GetDC(null);
   if (!screenDc) {
     return;
   }
 
   try {
-    if (on) {
-      // Try requested strong tint first, then a milder fallback accepted by more drivers.
-      const primaryRamp = buildGammaRamp(true, 0.22, 0.35);
+    if (mode !== "off") {
+      // Try requested tint first, then a milder fallback accepted by more drivers.
+      const primaryRamp =
+        mode === "record"
+          ? buildGammaRamp(1.0, 0.22, 0.35)
+          : buildGammaRamp(0.4, 1.0, 0.4);
       let ok = Number(SetDeviceGammaRamp(screenDc, primaryRamp));
 
       if (!ok) {
-        const fallbackRamp = buildGammaRamp(true, 0.58, 0.35);
+        const fallbackRamp =
+          mode === "record"
+            ? buildGammaRamp(1.0, 0.58, 0.35)
+            : buildGammaRamp(0.65, 1.0, 0.65);
         ok = Number(SetDeviceGammaRamp(screenDc, fallbackRamp));
       }
 
@@ -152,7 +161,7 @@ export function toggleScreenHue(on: boolean): void {
         );
       }
 
-      if (tryApplyMagnifierHue(true)) {
+      if (tryApplyMagnifierHue(mode)) {
         activeHueBackend = "magnifier";
         return;
       }
@@ -169,17 +178,17 @@ export function toggleScreenHue(on: boolean): void {
     let cleared = false;
 
     if (activeHueBackend === "magnifier") {
-      cleared = tryApplyMagnifierHue(false);
+      cleared = tryApplyMagnifierHue("off");
     }
 
-    const neutralRamp = buildGammaRamp(false, 1.0, 1.0);
+    const neutralRamp = buildGammaRamp(1.0, 1.0, 1.0);
     const gammaCleared =
       Number(SetDeviceGammaRamp(screenDc, neutralRamp)) !== 0;
     cleared = cleared || gammaCleared;
 
     if (activeHueBackend !== "magnifier") {
       // Safe no-op when magnifier was never used; necessary when it was.
-      cleared = tryApplyMagnifierHue(false) || cleared;
+      cleared = tryApplyMagnifierHue("off") || cleared;
     }
 
     if (cleared) {
