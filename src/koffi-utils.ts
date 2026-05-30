@@ -39,6 +39,18 @@ export const SetForegroundWindow = user32.func("SetForegroundWindow", "int", [
 export const IsWindow = user32.func("IsWindow", "int", [HWND]);
 export const IsIconic = user32.func("IsIconic", "int", [HWND]);
 export const ShowWindow = user32.func("ShowWindow", "int", [HWND, "int"]);
+export const BringWindowToTop = user32.func("BringWindowToTop", "int", [HWND]);
+export const SetActiveWindow = user32.func("SetActiveWindow", HWND, [HWND]);
+export const AttachThreadInput = user32.func("AttachThreadInput", "int", [
+  "uint32",
+  "uint32",
+  "int",
+]);
+export const GetWindowThreadProcessId = user32.func(
+  "GetWindowThreadProcessId",
+  "uint32",
+  [HWND, "void *"],
+);
 export const GetWindowTextW = user32.func("GetWindowTextW", "int", [
   HWND,
   koffi.out("char16 *"),
@@ -78,6 +90,11 @@ export const UnhookWindowsHookEx = user32.func("UnhookWindowsHookEx", "int", [
 export const GetModuleHandleW = kernel32.func("GetModuleHandleW", HINSTANCE, [
   "char16 *",
 ]);
+export const GetCurrentThreadId = kernel32.func(
+  "GetCurrentThreadId",
+  "uint32",
+  [],
+);
 
 export function decodeKeyboardHookLParam(lParam: bigint): { vkCode: number } {
   return koffi.decode(lParam, KBDLLHOOKSTRUCT) as { vkCode: number };
