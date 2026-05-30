@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { startListening } from "./chord-utils.js";
 import { setScreenHue } from "./screen-hue.js";
 import {
@@ -15,7 +17,7 @@ const bindings = new Map<string, WindowInfo>();
 let activeRecording: WindowInfo | undefined;
 let awaitingChordRemoval = false;
 const toolWindowAtStartup = getActiveWindowHandleAndName() ?? undefined;
-console.log("[info] Tool window at startup:", toolWindowAtStartup);
+console.log("[info] Tool window at startup:", toolWindowAtStartup.name);
 let removalReturnWindow: WindowInfo | undefined;
 
 const listener = startListening({
@@ -106,6 +108,6 @@ function printBindings(): void {
 }
 
 console.log("[winswitcher] Starting...");
-console.log(`  record chord: ${RECORD_CHORD}`);
-console.log(`  remove chord: ${REMOVE_CHORD}`);
+console.log(`  Recording a chord: ${RECORD_CHORD}`);
+console.log(`  Removing a chord: ${REMOVE_CHORD}`);
 listener.runMessageLoop();

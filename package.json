@@ -1,12 +1,19 @@
 {
   "name": "switcher",
   "version": "1.0.0",
-  "private": true,
   "type": "module",
+  "bin": {
+    "switcher": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js"
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "pnpm clean && tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "prepack": "pnpm build"
   },
   "dependencies": {
     "koffi": "^3.0.2"
