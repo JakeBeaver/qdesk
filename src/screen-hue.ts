@@ -69,9 +69,9 @@ function buildColorEffectMatrix(mode: ScreenHueMode): Buffer {
   // MAGCOLOREFFECT is a 5x5 float matrix.
   const matrix = Buffer.alloc(25 * 4);
 
-  const redScale = mode === "record" ? 1.0 : mode === "remove" ? 0.35 : 1.0;
-  const greenScale = mode === "record" ? 0.3 : mode === "remove" ? 1.0 : 1.0;
-  const blueScale = mode === "record" ? 0.18 : mode === "remove" ? 0.35 : 1.0;
+  const redScale = mode === "record" ? 0.35 : mode === "remove" ? 1.0 : 1.0;
+  const greenScale = mode === "record" ? 1.0 : mode === "remove" ? 0.3 : 1.0;
+  const blueScale = mode === "record" ? 0.35 : mode === "remove" ? 0.18 : 1.0;
 
   const values = [
     redScale,
@@ -137,15 +137,15 @@ export function setScreenHue(mode: ScreenHueMode): void {
       // Try requested tint first, then a milder fallback accepted by more drivers.
       const primaryRamp =
         mode === "record"
-          ? buildGammaRamp(1.0, 0.22, 0.35)
-          : buildGammaRamp(0.4, 1.0, 0.4);
+          ? buildGammaRamp(0.4, 1.0, 0.4)
+          : buildGammaRamp(1.0, 0.22, 0.35);
       let ok = Number(SetDeviceGammaRamp(screenDc, primaryRamp));
 
       if (!ok) {
         const fallbackRamp =
           mode === "record"
-            ? buildGammaRamp(1.0, 0.58, 0.35)
-            : buildGammaRamp(0.65, 1.0, 0.65);
+            ? buildGammaRamp(0.65, 1.0, 0.65)
+            : buildGammaRamp(1.0, 0.58, 0.35);
         ok = Number(SetDeviceGammaRamp(screenDc, fallbackRamp));
       }
 
