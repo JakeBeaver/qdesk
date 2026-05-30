@@ -86,103 +86,333 @@ function getWindowTitle(hwnd: unknown): string {
 
 const MOD_ALT = 0x0001;
 const MOD_CONTROL = 0x0002;
+const MOD_SHIFT = 0x0004;
+const MOD_WIN = 0x0008;
 const SW_RESTORE = 9;
 const WM_HOTKEY = 0x0312;
 
-const NUM_SLOTS = 9;
+// Configure this at the top of the file.
+const ACTIVATION_CHORD = "ctrl+alt+r";
 
-// Hotkey IDs:
-//   1-9   -> Alt+N      (jump to slot N)
-//  11-19  -> Ctrl+Alt+N (assign slot N)
-const ID_JUMP_BASE = 1;
-const ID_ASSIGN_BASE = 11;
-
-// slots[0] = slot 1, slots[8] = slot 9
-const slots: Array<SlotEntry | null> = new Array(NUM_SLOTS).fill(null);
-
-function registerHotkeys(): void {
-  const VK_1 = 0x31;
-
-  for (let i = 0; i < NUM_SLOTS; i++) {
-    const vk = VK_1 + i;
-
-    const jumpOk = Number(RegisterHotKey(null, ID_JUMP_BASE + i, MOD_ALT, vk));
-    if (!jumpOk) {
-      console.warn(`[warn] Could not register Alt+${i + 1} (already in use?)`);
+type HotkeyAction =
+  | {
+      kind: "activate-recording";
     }
+  | {
+      kind: "record-candidate";
+      combo: string;
+    }
+  | {
+      kind: "jump-binding";
+      combo: string;
+    };
 
-    const assignOk = Number(
-      RegisterHotKey(null, ID_ASSIGN_BASE + i, MOD_CONTROL | MOD_ALT, vk),
-    );
-    if (!assignOk) {
-      console.warn(
-        `[warn] Could not register Ctrl+Alt+${i + 1} (already in use?)`,
-      );
+type WindowBinding = {
+  hwnd: unknown;
+  title: string;
+};
+
+const hotkeyActions = new Map<number, HotkeyAction>();
+const bindings = new Map<string, WindowBinding>();
+const jumpHotkeyIdsByCombo = new Map<string, number>();
+const recordingHotkeyIds = new Set<number>();
+
+let nextHotkeyId = 1;
+let activationHotkeyId = -1;
+let isRecording = false;
+let pendingRecordingTarget: WindowBinding | null = null;
+
+function parseHotkeyCombo(
+  combo: string,
+): { modifiers: number; vk: number; normalized: string } | null {
+  const parts = combo
+    .split("+")
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (parts.length < 2) {
+    return null;
+  }
+
+  const key = parts[parts.length - 1];
+  const modifiers = parts.slice(0, -1);
+
+  let modMask = 0;
+  const normalizedModifiers: string[] = [];
+
+  for (const mod of modifiers) {
+    if (mod === "alt") {
+      modMask |= MOD_ALT;
+      normalizedModifiers.push("alt");
+    } else if (mod === "ctrl" || mod === "control") {
+      modMask |= MOD_CONTROL;
+      normalizedModifiers.push("ctrl");
+    } else if (mod === "shift") {
+      modMask |= MOD_SHIFT;
+      normalizedModifiers.push("shift");
+    } else if (mod === "win" || mod === "meta") {
+      modMask |= MOD_WIN;
+      normalizedModifiers.push("win");
+    } else {
+      return null;
     }
   }
 
+  let vk = -1;
+  if (/^[0-9]$/.test(key)) {
+    vk = key.charCodeAt(0);
+  } else if (/^[a-z]$/.test(key)) {
+    vk = key.toUpperCase().charCodeAt(0);
+  } else {
+    const functionMatch = /^f([1-9]|1[0-9]|2[0-4])$/.exec(key);
+    if (functionMatch) {
+      const fn = Number(functionMatch[1]);
+      vk = 0x70 + (fn - 1);
+    }
+  }
+
+  if (vk < 0 || modMask === 0) {
+    return null;
+  }
+
+  const canonicalModifiers = ["ctrl", "alt", "shift", "win"].filter((mod) =>
+    normalizedModifiers.includes(mod),
+  );
+  const normalizedKey = key.length === 1 ? key.toLowerCase() : key;
+
+  return {
+    modifiers: modMask,
+    vk,
+    normalized: `${canonicalModifiers.join("+")}+${normalizedKey}`,
+  };
+}
+
+function registerHotkeyAction(
+  combo: string,
+  action: HotkeyAction,
+): number | null {
+  const parsed = parseHotkeyCombo(combo);
+  if (!parsed) {
+    console.warn(`[warn] Invalid combo "${combo}".`);
+    return null;
+  }
+
+  const id = nextHotkeyId;
+  nextHotkeyId += 1;
+
+  const ok = Number(RegisterHotKey(null, id, parsed.modifiers, parsed.vk));
+  if (!ok) {
+    console.warn(`[warn] Could not register ${combo} (already in use?)`);
+    return null;
+  }
+
+  hotkeyActions.set(id, action);
+  return id;
+}
+
+function unregisterHotkeyById(id: number): void {
+  UnregisterHotKey(null, id);
+  hotkeyActions.delete(id);
+}
+
+function buildRecordingCombos(): string[] {
+  const keys: string[] = [];
+
+  for (let n = 0; n <= 9; n++) {
+    keys.push(String(n));
+  }
+
+  for (let code = 65; code <= 90; code++) {
+    keys.push(String.fromCharCode(code).toLowerCase());
+  }
+
+  for (let fn = 1; fn <= 12; fn++) {
+    keys.push(`f${fn}`);
+  }
+
+  const modifiers = ["ctrl", "alt", "shift", "win"];
+  const combos: string[] = [];
+
+  for (let mask = 1; mask < 16; mask++) {
+    const parts: string[] = [];
+    for (let i = 0; i < modifiers.length; i++) {
+      if (mask & (1 << i)) {
+        parts.push(modifiers[i]);
+      }
+    }
+    const prefix = parts.join("+");
+
+    for (const key of keys) {
+      combos.push(`${prefix}+${key}`);
+    }
+  }
+
+  return combos;
+}
+
+const RECORDING_COMBOS = buildRecordingCombos();
+
+function registerActivationHotkey(): void {
+  const id = registerHotkeyAction(ACTIVATION_CHORD, {
+    kind: "activate-recording",
+  });
+  if (id == null) {
+    console.error(
+      `[error] Failed to register activation chord ${ACTIVATION_CHORD}. Exiting.`,
+    );
+    process.exit(1);
+  }
+  activationHotkeyId = id;
+}
+
+function registerJumpHotkeys(): void {
+  for (const combo of bindings.keys()) {
+    const id = registerHotkeyAction(combo, {
+      kind: "jump-binding",
+      combo,
+    });
+    if (id != null) {
+      jumpHotkeyIdsByCombo.set(combo, id);
+    }
+  }
+}
+
+function unregisterJumpHotkeys(): void {
+  for (const id of jumpHotkeyIdsByCombo.values()) {
+    unregisterHotkeyById(id);
+  }
+  jumpHotkeyIdsByCombo.clear();
+}
+
+function registerRecordingHotkeys(): void {
+  const activation = parseHotkeyCombo(ACTIVATION_CHORD)?.normalized;
+
+  for (const combo of RECORDING_COMBOS) {
+    const normalized = parseHotkeyCombo(combo)?.normalized;
+    if (!normalized || normalized === activation) {
+      continue;
+    }
+
+    const id = registerHotkeyAction(combo, {
+      kind: "record-candidate",
+      combo: normalized,
+    });
+    if (id != null) {
+      recordingHotkeyIds.add(id);
+    }
+  }
+}
+
+function unregisterRecordingHotkeys(): void {
+  for (const id of recordingHotkeyIds) {
+    unregisterHotkeyById(id);
+  }
+  recordingHotkeyIds.clear();
+}
+
+function registerHotkeys(): void {
+  registerActivationHotkey();
+  registerJumpHotkeys();
+
   console.log("[winswitcher] Hotkeys registered.");
-  console.log("  Ctrl+Alt+1..9 -> assign current window to slot");
-  console.log("  Alt+1..9      -> jump to slot");
+  console.log(`  activation chord: ${ACTIVATION_CHORD}`);
+  console.log(
+    "  press activation chord, then the next chord to bind current window",
+  );
 }
 
 function unregisterHotkeys(): void {
-  for (let i = 0; i < NUM_SLOTS; i++) {
-    UnregisterHotKey(null, ID_JUMP_BASE + i);
-    UnregisterHotKey(null, ID_ASSIGN_BASE + i);
+  for (const id of [...hotkeyActions.keys()]) {
+    unregisterHotkeyById(id);
+  }
+  jumpHotkeyIdsByCombo.clear();
+  recordingHotkeyIds.clear();
+}
+
+function restoreAndFocusWindow(binding: WindowBinding, combo: string): void {
+  if (!Number(IsWindow(binding.hwnd))) {
+    console.log(
+      `[binding ${combo}] Window "${binding.title}" no longer exists, clearing binding.`,
+    );
+    bindings.delete(combo);
+    const jumpId = jumpHotkeyIdsByCombo.get(combo);
+    if (jumpId != null) {
+      unregisterHotkeyById(jumpId);
+      jumpHotkeyIdsByCombo.delete(combo);
+    }
+    return;
+  }
+
+  if (Number(IsIconic(binding.hwnd))) {
+    ShowWindow(binding.hwnd, SW_RESTORE);
+  }
+
+  const ok = Number(SetForegroundWindow(binding.hwnd));
+  if (ok) {
+    console.log(`[binding ${combo}] Switched to "${binding.title}"`);
+  } else {
+    console.warn(
+      `[binding ${combo}] SetForegroundWindow failed for "${binding.title}"`,
+    );
   }
 }
 
-function assignSlot(slotIndex: number): void {
+function printBindings(): void {
+  console.log("\n[winswitcher] Current bindings:");
+  if (bindings.size === 0) {
+    console.log("  (none)");
+  } else {
+    for (const [combo, binding] of bindings) {
+      console.log(`  ${combo} -> "${binding.title}"`);
+    }
+  }
+  console.log("");
+}
+
+function startRecording(): void {
+  if (isRecording) {
+    return;
+  }
+
   const hwnd = GetForegroundWindow();
   if (!hwnd) {
-    console.log(`[slot ${slotIndex + 1}] No foreground window found.`);
+    console.warn("[warn] No foreground window found to bind.");
     return;
   }
 
   const title = getWindowTitle(hwnd);
-  slots[slotIndex] = { hwnd, title };
-  console.log(`[slot ${slotIndex + 1}] Assigned -> "${title}"`);
+  pendingRecordingTarget = { hwnd, title };
+  isRecording = true;
+
+  unregisterJumpHotkeys();
+  registerRecordingHotkeys();
+
+  console.log(`[recording] Capturing next chord for "${title}"...`);
 }
 
-function jumpToSlot(slotIndex: number): void {
-  const slot = slots[slotIndex];
-  if (!slot) {
-    console.log(
-      `[slot ${slotIndex + 1}] Empty - use Ctrl+Alt+${slotIndex + 1} to assign.`,
-    );
+function stopRecording(): void {
+  if (!isRecording) {
     return;
   }
 
-  if (!Number(IsWindow(slot.hwnd))) {
-    console.log(
-      `[slot ${slotIndex + 1}] Window "${slot.title}" no longer exists, clearing slot.`,
-    );
-    slots[slotIndex] = null;
+  unregisterRecordingHotkeys();
+  registerJumpHotkeys();
+  isRecording = false;
+  pendingRecordingTarget = null;
+}
+
+function recordBinding(combo: string): void {
+  if (!isRecording || !pendingRecordingTarget) {
     return;
   }
 
-  if (Number(IsIconic(slot.hwnd))) {
-    ShowWindow(slot.hwnd, SW_RESTORE);
-  }
+  bindings.set(combo, pendingRecordingTarget);
+  console.log(
+    `[recording] Bound ${combo} -> "${pendingRecordingTarget.title}"`,
+  );
 
-  const ok = Number(SetForegroundWindow(slot.hwnd));
-  if (ok) {
-    console.log(`[slot ${slotIndex + 1}] Switched to "${slot.title}"`);
-  } else {
-    console.warn(
-      `[slot ${slotIndex + 1}] SetForegroundWindow failed for "${slot.title}"`,
-    );
-  }
-}
-
-function printSlots(): void {
-  console.log("\n[winswitcher] Current slots:");
-  for (let i = 0; i < NUM_SLOTS; i++) {
-    const slot = slots[i];
-    console.log(`  ${i + 1}: ${slot ? `"${slot.title}"` : "(empty)"}`);
-  }
-  console.log("");
+  stopRecording();
+  printBindings();
 }
 
 function runMessageLoop(): void {
@@ -206,11 +436,20 @@ function runMessageLoop(): void {
     if (msg.message === WM_HOTKEY) {
       const id = Number(msg.wParam ?? -1);
 
-      if (id >= ID_ASSIGN_BASE && id < ID_ASSIGN_BASE + NUM_SLOTS) {
-        assignSlot(id - ID_ASSIGN_BASE);
-        printSlots();
-      } else if (id >= ID_JUMP_BASE && id < ID_JUMP_BASE + NUM_SLOTS) {
-        jumpToSlot(id - ID_JUMP_BASE);
+      const action = hotkeyActions.get(id);
+      if (!action) {
+        continue;
+      }
+
+      if (action.kind === "activate-recording") {
+        startRecording();
+      } else if (action.kind === "record-candidate") {
+        recordBinding(action.combo);
+      } else if (!isRecording) {
+        const binding = bindings.get(action.combo);
+        if (binding) {
+          restoreAndFocusWindow(binding, action.combo);
+        }
       }
     }
 
@@ -230,5 +469,5 @@ process.on("SIGTERM", shutdown);
 
 console.log("[winswitcher] Starting...");
 registerHotkeys();
-printSlots();
+printBindings();
 runMessageLoop();
