@@ -27,7 +27,7 @@ const MagSetFullscreenColorEffect = magnification
   ? magnification.func("MagSetFullscreenColorEffect", "int", ["void *"])
   : null;
 
-let hasWarnedGammaFailure = false;
+// let hasWarnedGammaFailure = false;
 let hasWarnedMagFailure = false;
 let magInitialized = false;
 let activeHueBackend: "none" | "gamma" | "magnifier" = "none";
@@ -154,12 +154,12 @@ export function setScreenHue(mode: ScreenHueMode): void {
         return;
       }
 
-      if (!hasWarnedGammaFailure) {
-        hasWarnedGammaFailure = true;
-        console.warn(
-          "[warn] Gamma ramp unsupported on this display/driver, trying Magnification fallback.",
-        );
-      }
+      // if (!hasWarnedGammaFailure) {
+      //   hasWarnedGammaFailure = true;
+      //   console.warn(
+      //     "[warn] Gamma ramp unsupported on this display/driver, trying Magnification fallback.",
+      //   );
+      // }
 
       if (tryApplyMagnifierHue(mode)) {
         activeHueBackend = "magnifier";
