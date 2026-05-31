@@ -11,6 +11,7 @@ import {
 import { ensureSingleProcess } from "./process/process-deduplication.js";
 import { getCliArgStuff } from "./process/cli.js";
 import { KeyBindings } from "./bank/key-bindings.js";
+import { logSwitch } from "./log/log.js";
 
 ensureSingleProcess();
 
@@ -120,16 +121,24 @@ startListening({
     if (binding) {
       const result = activateWindowByHandle(binding.handle);
       if (result === "missing") {
-        console.error(
-          `[switch ${chord}] Window "${binding.name}" no longer exists, clearing binding.`,
-        );
+        logSwitch({
+          chord,
+          name: binding.name,
+          type: "missing",
+        });
         bindings.delete(chord);
       } else if (result === "activated") {
-        console.log(`[switch ${chord}] Switched to "${binding.name}"`);
+        logSwitch({
+          chord,
+          name: binding.name,
+          type: "success",
+        });
       } else {
-        console.warn(
-          `[switch ${chord}] Activation failed for "${binding.name}"`,
-        );
+        logSwitch({
+          chord,
+          name: binding.name,
+          type: "failed",
+        });
       }
       return stopPropagating();
     }
