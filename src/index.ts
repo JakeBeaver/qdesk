@@ -31,10 +31,19 @@ function getPackageVersion(): string {
   }
 }
 
+function setTerminalTitle(title: string): void {
+  process.title = title;
+  if (process.stdout.isTTY) {
+    process.stdout.write(`\u001b]0;${title}\u0007`);
+  }
+}
+
 if (hasCliFlag("--version") || hasCliFlag("-v")) {
   console.log(getPackageVersion());
   process.exit(0);
 }
+
+setTerminalTitle("qdesk");
 
 function normalizeChordInput(chord: string): string {
   return normalizeChord(chord.trim().toLowerCase());
