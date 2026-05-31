@@ -11,24 +11,21 @@ import {
 import { ensureSingleProcess } from "./process/process-deduplication.js";
 import { getCliArgStuff } from "./process/cli.js";
 import { KeyBindings } from "./bank/key-bindings.js";
-import { logSwitch } from "./log/log.js";
+import { logInfo, logSwitch, logWarn } from "./log/log.js";
 
 ensureSingleProcess();
 
 const { ADD_CHORD, DROP_CHORD } = getCliArgStuff();
 if (ADD_CHORD === DROP_CHORD) {
-  console.warn(
-    `[warn] add and drop chords are identical (${ADD_CHORD}); behavior may conflict.`,
+  logWarn(
+    `add and drop chords are identical (${ADD_CHORD}); behavior may conflict.`,
   );
 }
 
 let activeRecording: WindowInfo | undefined;
 let awaitingChordRemoval = false;
 const toolWindowAtStartup = getActiveWindowHandleAndName() ?? undefined;
-console.log(
-  "[info] Tool window at startup:",
-  toolWindowAtStartup?.name ?? "(unknown)",
-);
+logInfo(`Tool window at startup: ${toolWindowAtStartup?.name ?? "(unknown)"}`);
 
 const bindings = new KeyBindings();
 
@@ -39,12 +36,12 @@ startListening({
     }
 
     if (activeRecording) {
-      console.log("[add] Canceled recording mode via Escape.");
+      logInfo("[add] Canceled recording mode via Escape.");
       activeRecording = undefined;
     }
 
     if (awaitingChordRemoval) {
-      console.log("[drop] Canceled removal mode via Escape.");
+      logInfo("[drop] Canceled removal mode via Escape.");
       awaitingChordRemoval = false;
     }
 
@@ -56,13 +53,13 @@ startListening({
     // recording
     if (activeRecording) {
       if ([ADD_CHORD, DROP_CHORD].includes(chord)) {
-        console.warn(
-          `[warn] Ignoring ${chord} chord during active recording to avoid conflicts.`,
+        logWarn(
+          `Ignoring ${chord} chord during active recording to avoid conflicts.`,
         );
         return stopPropagating();
       }
       bindings.set(chord, activeRecording);
-      console.log(`[add] Bound ${chord} -> "${activeRecording.name}"`);
+      logInfo(`[add] Bound ${chord} -> "${activeRecording.name}"`);
       activeRecording = undefined;
       setScreenHue("off");
       printBindings();
@@ -74,9 +71,9 @@ startListening({
       awaitingChordRemoval = false;
       setScreenHue("off");
       if (bindings.delete(chord)) {
-        console.log(`[drop] Removed binding for ${chord}`);
+        logInfo(`[drop] Removed binding for ${chord}`);
       } else {
-        console.log(`[drop] No binding exists for ${chord}`);
+        logInfo(`[drop] No binding exists for ${chord}`);
       }
       printBindings();
       return stopPropagating();
@@ -88,9 +85,9 @@ startListening({
       setScreenHue("off");
       activeRecording = getActiveWindowHandleAndName();
       if (!activeRecording) {
-        console.warn("[warn] No foreground window found to bind.");
+        logWarn("[warn] No foreground window found to bind.");
       } else {
-        console.log(
+        logInfo(
           `[add] Armed for "${activeRecording.name}". Waiting for next chord...`,
         );
         setScreenHue("record");
