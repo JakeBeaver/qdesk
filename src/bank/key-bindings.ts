@@ -31,11 +31,17 @@ export class KeyBindings {
 
   set(chord: string, info: WindowInfo): void {
     this.bindings.set(chord, info);
+    console.log(`[add] Bound ${chord} -> "${info.name}"`);
     save(this.bindings);
   }
 
   delete(chord: string): boolean {
     const output = this.bindings.delete(chord);
+    if (output) {
+      console.log(`[remove] Unbound ${chord}`);
+    } else {
+      console.log(`[remove] No binding exists for ${chord}`);
+    }
     save(this.bindings);
     return output;
   }

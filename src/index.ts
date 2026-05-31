@@ -59,7 +59,6 @@ startListening({
         return stopPropagating();
       }
       bindings.set(chord, activeRecording);
-      logInfo(`[add] Bound ${chord} -> "${activeRecording.name}"`);
       activeRecording = undefined;
       setScreenHue("off");
       printBindings();
@@ -70,11 +69,7 @@ startListening({
     if (awaitingChordRemoval) {
       awaitingChordRemoval = false;
       setScreenHue("off");
-      if (bindings.delete(chord)) {
-        logInfo(`[drop] Removed binding for ${chord}`);
-      } else {
-        logInfo(`[drop] No binding exists for ${chord}`);
-      }
+      bindings.delete(chord);
       printBindings();
       return stopPropagating();
     }
