@@ -181,7 +181,6 @@ const listener = startListening({
         );
         bindings.delete(chord);
       } else if (result === "activated") {
-        binding.name = getActiveWindowHandleAndName()?.name ?? binding.name; // warm the cache to speed up subsequent switches
         console.log(`[switch ${chord}] Switched to "${binding.name}"`);
       } else {
         console.warn(
