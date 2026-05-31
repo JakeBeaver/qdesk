@@ -36,12 +36,12 @@ startListening({
     }
 
     if (activeRecording) {
-      logInfo("[add] Canceled recording mode via Escape.");
+      logInfo("Canceled recording mode via Escape.");
       activeRecording = undefined;
     }
 
     if (awaitingChordRemoval) {
-      logInfo("[drop] Canceled removal mode via Escape.");
+      logInfo("Canceled removal mode via Escape.");
       awaitingChordRemoval = false;
     }
 
@@ -80,10 +80,10 @@ startListening({
       setScreenHue("off");
       activeRecording = getActiveWindowHandleAndName();
       if (!activeRecording) {
-        logWarn("[warn] No foreground window found to bind.");
+        logWarn("No foreground window found to bind.");
       } else {
         logInfo(
-          `[add] Armed for "${activeRecording.name}". Waiting for next chord...`,
+          `Armed for "${activeRecording.name}". Waiting for next chord... (Esc to cancel)`,
         );
         setScreenHue("record");
       }
@@ -102,7 +102,9 @@ startListening({
         activateWindowByHandle(toolWindowAtStartup.handle);
       }
 
-      console.log("[drop] Armed. Press the chord you want to remove.");
+      logInfo(
+        "Armed for removal. Press the chord you want to remove. (Esc to cancel)",
+      );
       printBindings();
       setScreenHue("remove");
       return stopPropagating();
