@@ -57,6 +57,25 @@ console.log(
 let removalReturnWindow: WindowInfo | undefined;
 
 const listener = startListening({
+  onEscape: (stopPropagating) => {
+    if (!activeRecording && !awaitingChordRemoval) {
+      return;
+    }
+
+    if (activeRecording) {
+      console.log("[add] Canceled recording mode via Escape.");
+      activeRecording = undefined;
+    }
+
+    if (awaitingChordRemoval) {
+      console.log("[drop] Canceled removal mode via Escape.");
+      awaitingChordRemoval = false;
+    }
+
+    setScreenHue("off");
+    printBindings();
+    stopPropagating();
+  },
   onChord: (chord, stopPropagating) => {
     if (activeRecording) {
       if ([ADD_CHORD, DROP_CHORD].includes(chord)) {
