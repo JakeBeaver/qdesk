@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { readFileSync } from "node:fs";
 import process from "node:process";
 import { normalizeChord, startListening } from "./chord-utils.js";
 import { setScreenHue } from "./screen-hue.js";
@@ -12,6 +13,28 @@ import {
 // Configure this chord at the top of file.
 const DEFAULT_ADD_CHORD = "win+ctrl+a";
 const DEFAULT_DROP_CHORD = "win+ctrl+d";
+
+function hasCliFlag(flag: string): boolean {
+  return process.argv.slice(2).includes(flag);
+}
+
+function getPackageVersion(): string {
+  try {
+    const packageJson = readFileSync(
+      new URL("../package.json", import.meta.url),
+      "utf8",
+    );
+    const parsed = JSON.parse(packageJson) as { version?: string };
+    return parsed.version ?? "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
+if (hasCliFlag("--version") || hasCliFlag("-v")) {
+  console.log(getPackageVersion());
+  process.exit(0);
+}
 
 function normalizeChordInput(chord: string): string {
   return normalizeChord(chord.trim().toLowerCase());
