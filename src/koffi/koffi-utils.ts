@@ -47,6 +47,7 @@ export const SetForegroundWindow = user32.func("SetForegroundWindow", "int", [
 ]);
 export const IsWindow = user32.func("IsWindow", "int", [HWND]);
 export const IsIconic = user32.func("IsIconic", "int", [HWND]);
+export const IsZoomed = user32.func("IsZoomed", "int", [HWND]);
 export const ShowWindow = user32.func("ShowWindow", "int", [HWND, "int"]);
 export const BringWindowToTop = user32.func("BringWindowToTop", "int", [HWND]);
 export const SetActiveWindow = user32.func("SetActiveWindow", HWND, [HWND]);

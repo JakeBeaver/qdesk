@@ -7,6 +7,7 @@ import {
   GetWindowThreadProcessId,
   GetWindowTextW,
   IsIconic,
+  IsZoomed,
   IsWindow,
   SetActiveWindow,
   SetForegroundWindow,
@@ -22,6 +23,7 @@ export type ActivateWindowResult = "activated" | "missing" | "failed";
 
 const SW_RESTORE = 9;
 const SW_SHOW = 5;
+const SW_SHOWMAXIMIZED = 3;
 
 function getWindowTitle(hwnd: BigInt): string {
   const buf = Buffer.alloc(512);
@@ -46,11 +48,21 @@ export function activateWindowByHandle(handle: unknown): ActivateWindowResult {
     return "missing";
   }
 
-  if (Number(IsIconic(handle))) {
-    ShowWindow(handle, SW_RESTORE);
-  } else {
+  const showTargetWindow = () => {
+    if (Number(IsIconic(handle))) {
+      ShowWindow(handle, SW_RESTORE);
+      return;
+    }
+
+    if (Number(IsZoomed(handle))) {
+      ShowWindow(handle, SW_SHOWMAXIMIZED);
+      return;
+    }
+
     ShowWindow(handle, SW_SHOW);
-  }
+  };
+
+  showTargetWindow();
 
   // Fast path for windows that can be foregrounded immediately.
   if (Number(SetForegroundWindow(handle)) !== 0) {
@@ -80,7 +92,7 @@ export function activateWindowByHandle(handle: unknown): ActivateWindowResult {
 
     BringWindowToTop(handle);
     SetActiveWindow(handle);
-    ShowWindow(handle, SW_SHOW);
+    showTargetWindow();
 
     if (Number(SetForegroundWindow(handle)) !== 0) {
       return "activated";
