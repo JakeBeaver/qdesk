@@ -66,6 +66,13 @@ export const GetMessageW = user32.func("GetMessageW", "int", [
   UINT,
   UINT,
 ]);
+export const PeekMessageW = user32.func("PeekMessageW", "int", [
+  koffi.out(koffi.pointer(MSG)),
+  HWND,
+  UINT,
+  UINT,
+  UINT,
+]);
 export const TranslateMessage = user32.func("TranslateMessage", "int", [
   koffi.pointer(MSG),
 ]);

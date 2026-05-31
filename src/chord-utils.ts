@@ -3,8 +3,8 @@ import {
   decodeKeyboardHookLParam,
   DispatchMessageW,
   GetAsyncKeyState,
-  GetMessageW,
   GetModuleHandleW,
+  PeekMessageW,
   registerKeyboardHookCallback,
   SetWindowsHookExW,
   TranslateMessage,
@@ -30,6 +30,7 @@ const HC_ACTION = 0;
 const WH_KEYBOARD_LL = 13;
 const WM_KEYDOWN = 0x0100;
 const WM_SYSKEYDOWN = 0x0104;
+const PM_REMOVE = 0x0001;
 
 export type KeyboardListener = {
   runMessageLoop: () => void;
@@ -212,6 +213,8 @@ export function startListening(
   let keyboardHook: unknown = null;
   let keyboardHookProcPtr: ReturnType<typeof registerKeyboardHookCallback> =
     null;
+  let messagePump: ReturnType<typeof setInterval> | undefined;
+  let isShuttingDown = false;
 
   const callback = (nCode: number, wParam: number, lParam: bigint): bigint => {
     const passThrough = () =>
@@ -281,7 +284,18 @@ export function startListening(
   }
 
   function shutdown(): void {
+    if (isShuttingDown) {
+      return;
+    }
+    isShuttingDown = true;
+
     console.log("\n[qdesk] Shutting down...");
+
+    if (messagePump) {
+      clearInterval(messagePump);
+      messagePump = undefined;
+    }
+
     if (keyboardHook) {
       UnhookWindowsHookEx(keyboardHook);
       keyboardHook = null;
@@ -303,20 +317,12 @@ export function startListening(
         wParam?: number;
       } = {};
 
-      while (true) {
-        const ret = Number(GetMessageW(msg, null, 0, 0));
-
-        if (ret === 0) {
-          break;
+      messagePump = setInterval(() => {
+        while (Number(PeekMessageW(msg, null, 0, 0, PM_REMOVE)) !== 0) {
+          TranslateMessage(msg);
+          DispatchMessageW(msg);
         }
-        if (ret === -1) {
-          console.error("[error] GetMessageW returned -1");
-          break;
-        }
-
-        TranslateMessage(msg);
-        DispatchMessageW(msg);
-      }
+      }, 8);
     },
   };
 }
