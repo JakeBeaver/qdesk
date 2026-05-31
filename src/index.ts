@@ -9,6 +9,12 @@ import {
   getActiveWindowHandleAndName,
   WindowInfo,
 } from "./window-utils.js";
+import { isAlreadyRunning } from "./process-utils.js";
+
+if (isAlreadyRunning()) {
+  console.error("Another instance is already running. Exiting.");
+  process.exit(1);
+}
 
 // Configure this chord at the top of file.
 const DEFAULT_ADD_CHORD = "win+ctrl+a";
