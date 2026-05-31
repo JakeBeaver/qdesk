@@ -29,8 +29,17 @@ const KeyboardHookProc = koffi.proto(
   "int64 KeyboardHookProc(int nCode, uint64 wParam, void *lParam)",
 );
 
-const user32 = koffi.load("user32.dll");
-const kernel32 = koffi.load("kernel32.dll");
+export const user32 = koffi.load("user32.dll");
+export const kernel32 = koffi.load("kernel32.dll");
+export const gdi32 = koffi.load("gdi32.dll");
+
+export const magnification = (() => {
+  try {
+    return koffi.load("Magnification.dll");
+  } catch {
+    return null;
+  }
+})();
 
 export const GetForegroundWindow = user32.func("GetForegroundWindow", HWND, []);
 export const SetForegroundWindow = user32.func("SetForegroundWindow", "int", [

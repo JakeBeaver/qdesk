@@ -1,17 +1,7 @@
 import koffi from "koffi";
-import { HWND } from "./koffi-utils.js";
+import { gdi32, HWND, magnification, user32 } from "./koffi-utils.js";
 
 const HDC = koffi.pointer("HDC", koffi.opaque());
-
-const user32 = koffi.load("user32.dll");
-const gdi32 = koffi.load("gdi32.dll");
-
-let magnification: ReturnType<typeof koffi.load> | null = null;
-try {
-  magnification = koffi.load("Magnification.dll");
-} catch {
-  magnification = null;
-}
 
 const GetDC = user32.func("GetDC", HDC, [HWND]);
 const ReleaseDC = user32.func("ReleaseDC", "int", [HWND, HDC]);

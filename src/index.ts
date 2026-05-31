@@ -8,7 +8,7 @@ import {
   getActiveWindowHandleAndName,
   WindowInfo,
 } from "./koffi/window-utils.js";
-import { ensureSingleProcess } from "./process/process-utils.js";
+import { ensureSingleProcess } from "./process/process-deduplication.js";
 import { getCliArgStuff } from "./process/cli.js";
 import { KeyBindings } from "./bank/key-bindings.js";
 
