@@ -9,6 +9,7 @@ import {
 } from "./koffi/window-utils.js";
 import { ensureSingleProcess } from "./process/process-utils.js";
 import { getCliArgStuff } from "./process/cli.js";
+import { KeyBindings } from "./bank/key-bindings.js";
 
 ensureSingleProcess();
 
@@ -19,8 +20,6 @@ if (ADD_CHORD === DROP_CHORD) {
   );
 }
 
-const bindings = new Map<string, WindowInfo>();
-
 let activeRecording: WindowInfo | undefined;
 let awaitingChordRemoval = false;
 const toolWindowAtStartup = getActiveWindowHandleAndName() ?? undefined;
@@ -28,6 +27,8 @@ console.log(
   "[info] Tool window at startup:",
   toolWindowAtStartup?.name ?? "(unknown)",
 );
+
+const bindings = new KeyBindings();
 
 startListening({
   onEscape: (stopPropagating) => {
@@ -139,7 +140,7 @@ function printBindings(): void {
   if (bindings.size === 0) {
     console.log("  (none)");
   } else {
-    for (const [chord, window] of bindings) {
+    for (const [chord, window] of bindings.entries()) {
       console.log(`  ${chord} -> "${window.name}"`);
     }
   }
