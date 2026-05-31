@@ -1,6 +1,6 @@
 # qdesk
 
-Global keyboard chord switcher for Windows.
+Chord Window Switcher for Windows.
 
 qdesk lets you:
 
