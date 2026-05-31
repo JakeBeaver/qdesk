@@ -86,7 +86,6 @@ console.log(
   "[info] Tool window at startup:",
   toolWindowAtStartup?.name ?? "(unknown)",
 );
-let removalReturnWindow: WindowInfo | undefined;
 
 const listener = startListening({
   onEscape: (stopPropagating) => {
@@ -109,6 +108,7 @@ const listener = startListening({
     stopPropagating();
   },
   onChord: (chord, stopPropagating) => {
+    // recording
     if (activeRecording) {
       if ([ADD_CHORD, DROP_CHORD].includes(chord)) {
         console.warn(
@@ -124,6 +124,7 @@ const listener = startListening({
       return stopPropagating();
     }
 
+    // removing
     if (awaitingChordRemoval) {
       awaitingChordRemoval = false;
       setScreenHue("off");
@@ -136,6 +137,7 @@ const listener = startListening({
       return stopPropagating();
     }
 
+    // trigger recording
     if (chord === ADD_CHORD) {
       awaitingChordRemoval = false;
       setScreenHue("off");
@@ -151,6 +153,7 @@ const listener = startListening({
       return stopPropagating();
     }
 
+    // trigger removing
     if (chord === DROP_CHORD) {
       if (activeRecording) {
         activeRecording = undefined;
@@ -168,6 +171,7 @@ const listener = startListening({
       return stopPropagating();
     }
 
+    // switching
     const binding = bindings.get(chord);
     if (binding) {
       const result = activateWindowByHandle(binding.handle);
