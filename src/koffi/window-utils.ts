@@ -14,7 +14,7 @@ import {
 } from "./koffi-utils.js";
 
 export type WindowInfo = {
-  handle: unknown;
+  handle: BigInt;
   name: string;
 };
 
@@ -23,7 +23,7 @@ export type ActivateWindowResult = "activated" | "missing" | "failed";
 const SW_RESTORE = 9;
 const SW_SHOW = 5;
 
-function getWindowTitle(hwnd: unknown): string {
+function getWindowTitle(hwnd: BigInt): string {
   const buf = Buffer.alloc(512);
   const len = Number(GetWindowTextW(hwnd, buf, 256));
   return buf.slice(0, len * 2).toString("utf16le");

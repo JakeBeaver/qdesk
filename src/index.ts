@@ -151,3 +151,7 @@ console.log("[qdesk] Starting...");
 console.log(`  Adding a chord: ${ADD_CHORD}`);
 console.log(`  Dropping a chord: ${DROP_CHORD}`);
 console.log("  CLI overrides: -a <combo>, -d <combo>");
+
+if (bindings.size > 0) {
+  printBindings();
+}
