@@ -1,82 +1,18 @@
 #!/usr/bin/env node
 
-import { readFileSync } from "node:fs";
-import process from "node:process";
-import { normalizeChord, startListening } from "./chord-utils.js";
-import { setScreenHue } from "./screen-hue.js";
+import { startListening } from "./koffi/chord-utils.js";
+import { setScreenHue } from "./koffi/screen-hue.js";
 import {
   activateWindowByHandle,
   getActiveWindowHandleAndName,
   WindowInfo,
-} from "./window-utils.js";
-import { isAlreadyRunning } from "./process-utils.js";
+} from "./koffi/window-utils.js";
+import { ensureSingleProcess } from "./process/process-utils.js";
+import { getCliArgStuff } from "./process/cli.js";
 
-if (isAlreadyRunning()) {
-  console.error("Another instance is already running. Exiting.");
-  process.exit(1);
-}
+ensureSingleProcess();
 
-// Configure this chord at the top of file.
-const DEFAULT_ADD_CHORD = "win+ctrl+a";
-const DEFAULT_DROP_CHORD = "win+ctrl+d";
-
-function hasCliFlag(flag: string): boolean {
-  return process.argv.slice(2).includes(flag);
-}
-
-function getPackageVersion(): string {
-  try {
-    const packageJson = readFileSync(
-      new URL("../package.json", import.meta.url),
-      "utf8",
-    );
-    const parsed = JSON.parse(packageJson) as { version?: string };
-    return parsed.version ?? "unknown";
-  } catch {
-    return "unknown";
-  }
-}
-
-function setTerminalTitle(title: string): void {
-  process.title = title;
-  if (process.stdout.isTTY) {
-    process.stdout.write(`\u001b]0;${title}\u0007`);
-  }
-}
-
-if (hasCliFlag("--version") || hasCliFlag("-v")) {
-  console.log(getPackageVersion());
-  process.exit(0);
-}
-
-setTerminalTitle("qdesk");
-
-function normalizeChordInput(chord: string): string {
-  return normalizeChord(chord.trim().toLowerCase());
-}
-
-function getCliArgValue(flag: string): string | undefined {
-  const args = process.argv.slice(2);
-  const exact = args.find((arg) => arg.startsWith(`${flag}=`));
-  if (exact) {
-    return exact.slice(flag.length + 1);
-  }
-
-  const idx = args.indexOf(flag);
-  if (idx >= 0 && idx + 1 < args.length) {
-    return args[idx + 1];
-  }
-
-  return undefined;
-}
-
-const ADD_CHORD = normalizeChordInput(
-  getCliArgValue("-a") ?? DEFAULT_ADD_CHORD,
-);
-const DROP_CHORD = normalizeChordInput(
-  getCliArgValue("-d") ?? DEFAULT_DROP_CHORD,
-);
-
+const { ADD_CHORD, DROP_CHORD } = getCliArgStuff();
 if (ADD_CHORD === DROP_CHORD) {
   console.warn(
     `[warn] add and drop chords are identical (${ADD_CHORD}); behavior may conflict.`,

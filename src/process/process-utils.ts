@@ -17,3 +17,10 @@ export function isAlreadyRunning() {
   fs.writeFileSync(LOCK_FILE, String(process.pid));
   return false;
 }
+
+export function ensureSingleProcess() {
+  if (isAlreadyRunning()) {
+    console.error("Another instance is already running. Exiting.");
+    process.exit(1);
+  }
+}

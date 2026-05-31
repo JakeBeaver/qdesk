@@ -44,6 +44,7 @@ export type StartListeningOptions = {
 };
 
 export function normalizeChord(chord: string): string | null {
+  chord = chord.trim().toLowerCase();
   const parts = chord
     .split("+")
     .map((part) => part.trim().toLowerCase())

@@ -93,3 +93,7 @@ export function activateWindowByHandle(handle: unknown): ActivateWindowResult {
 
   return "failed";
 }
+
+export function checkIfWindowExists(handle: unknown): boolean {
+  return Boolean(IsWindow(handle));
+}
