@@ -1,18 +1,4 @@
-import {
-  CallNextHookEx,
-  decodeKeyboardHookLParam,
-  DispatchMessageW,
-  GetAsyncKeyState,
-  GetModuleHandleW,
-  PeekMessageW,
-  registerKeyboardHookCallback,
-  SetWindowsHookExW,
-  TranslateMessage,
-  UnhookWindowsHookEx,
-  unregisterCallback,
-} from "./koffi-utils.js";
-
-const process = (globalThis as any).process;
+import { GetAsyncKeyState } from "./koffi-utils.js";
 
 const MOD_ALT = 0x0001;
 const MOD_CONTROL = 0x0002;
@@ -22,19 +8,15 @@ const MOD_WIN = 0x0008;
 const VK_SHIFT = 0x10;
 const VK_CONTROL = 0x11;
 const VK_MENU = 0x12;
-const VK_ESCAPE = 0x1b;
+export const VK_ESCAPE = 0x1b;
 const VK_LWIN = 0x5b;
 const VK_RWIN = 0x5c;
 
-const HC_ACTION = 0;
-const WH_KEYBOARD_LL = 13;
-const WM_KEYDOWN = 0x0100;
-const WM_SYSKEYDOWN = 0x0104;
-const PM_REMOVE = 0x0001;
-
-export type KeyboardListener = {
-  runMessageLoop: () => void;
-};
+export const HC_ACTION = 0;
+export const WH_KEYBOARD_LL = 13;
+export const WM_KEYDOWN = 0x0100;
+export const WM_SYSKEYDOWN = 0x0104;
+export const PM_REMOVE = 0x0001;
 
 export type StartListeningOptions = {
   activationChord?: string;
@@ -87,7 +69,7 @@ export function normalizeChord(chord: string): string | null {
   return `${normalizedMods.join("+")}+${key}`;
 }
 
-function parseHotkeyCombo(combo: string): {
+export function parseHotkeyCombo(combo: string): {
   modifiers: number;
   vk: number;
   normalized: string;
@@ -170,7 +152,7 @@ function vkToKeyToken(vkCode: number): string | null {
   return null;
 }
 
-function buildCurrentChord(vkCode: number): string | null {
+export function buildCurrentChord(vkCode: number): string | null {
   const key = vkToKeyToken(vkCode);
   if (!key) {
     return null;
@@ -195,135 +177,4 @@ function buildCurrentChord(vkCode: number): string | null {
   }
 
   return `${parts.join("+")}+${key}`;
-}
-
-export function startListening(
-  options: StartListeningOptions,
-): KeyboardListener {
-  const activationNormalized = options.activationChord
-    ? normalizeChord(options.activationChord)
-    : null;
-
-  if (options.activationChord && !activationNormalized) {
-    console.error(
-      `[error] Invalid activation chord: ${options.activationChord}`,
-    );
-    process.exit(1);
-  }
-
-  let keyboardHook: unknown = null;
-  let keyboardHookProcPtr: ReturnType<typeof registerKeyboardHookCallback> =
-    null;
-  let messagePump: ReturnType<typeof setInterval> | undefined;
-  let isShuttingDown = false;
-
-  const callback = (nCode: number, wParam: number, lParam: bigint): bigint => {
-    const passThrough = () =>
-      BigInt(Number(CallNextHookEx(keyboardHook, nCode, wParam, lParam)));
-
-    try {
-      if (nCode !== HC_ACTION) {
-        return passThrough();
-      }
-
-      const message = Number(wParam);
-      if (message !== WM_KEYDOWN && message !== WM_SYSKEYDOWN) {
-        return passThrough();
-      }
-
-      const kb = decodeKeyboardHookLParam(lParam);
-      const vkCode = Number(kb.vkCode);
-
-      let shouldStopPropagation = false;
-      if (vkCode === VK_ESCAPE) {
-        options.onEscape?.(() => {
-          shouldStopPropagation = true;
-        });
-        if (shouldStopPropagation) {
-          return 1n;
-        }
-      }
-
-      const combo = buildCurrentChord(vkCode);
-      if (!combo) {
-        return passThrough();
-      }
-
-      if (activationNormalized && combo === activationNormalized) {
-        options.onActivation?.(() => {
-          shouldStopPropagation = true;
-        });
-      }
-
-      options.onChord(combo, () => {
-        shouldStopPropagation = true;
-      });
-
-      if (shouldStopPropagation) {
-        return 1n;
-      }
-
-      return passThrough();
-    } catch (error) {
-      console.error("[error] Keyboard hook callback failed:", error);
-      return passThrough();
-    }
-  };
-
-  keyboardHookProcPtr = registerKeyboardHookCallback(callback);
-  const moduleHandle = GetModuleHandleW(null);
-  keyboardHook = SetWindowsHookExW(
-    WH_KEYBOARD_LL,
-    keyboardHookProcPtr,
-    moduleHandle,
-    0,
-  );
-
-  if (!keyboardHook) {
-    console.error("[error] SetWindowsHookExW failed.");
-    process.exit(1);
-  }
-
-  function shutdown(): void {
-    if (isShuttingDown) {
-      return;
-    }
-    isShuttingDown = true;
-
-    console.log("\n[qdesk] Shutting down...");
-
-    if (messagePump) {
-      clearInterval(messagePump);
-      messagePump = undefined;
-    }
-
-    if (keyboardHook) {
-      UnhookWindowsHookEx(keyboardHook);
-      keyboardHook = null;
-    }
-
-    if (keyboardHookProcPtr) {
-      unregisterCallback(keyboardHookProcPtr);
-      keyboardHookProcPtr = null;
-    }
-    process.exit(0);
-  }
-
-  process.on("SIGINT", shutdown);
-  process.on("SIGTERM", shutdown);
-  return {
-    runMessageLoop: () => {
-      const msg: {
-        message?: number;
-        wParam?: number;
-      } = {};
-
-      messagePump = setInterval(() => {
-        while (Number(PeekMessageW(msg, null, 0, 0, PM_REMOVE)) !== 0) {
-          TranslateMessage(msg);
-          DispatchMessageW(msg);
-        }
-      }, 8);
-    },
-  };
 }

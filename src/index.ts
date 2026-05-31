@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { startListening } from "./koffi/chord-utils.js";
+import { startListening } from "./koffi/chord-listener.js";
 import { setScreenHue } from "./koffi/screen-hue.js";
 import {
   activateWindowByHandle,
@@ -29,7 +29,7 @@ console.log(
   toolWindowAtStartup?.name ?? "(unknown)",
 );
 
-const listener = startListening({
+startListening({
   onEscape: (stopPropagating) => {
     if (!activeRecording && !awaitingChordRemoval) {
       return;
@@ -150,4 +150,3 @@ console.log("[qdesk] Starting...");
 console.log(`  Adding a chord: ${ADD_CHORD}`);
 console.log(`  Dropping a chord: ${DROP_CHORD}`);
 console.log("  CLI overrides: -a <combo>, -d <combo>");
-listener.runMessageLoop();
