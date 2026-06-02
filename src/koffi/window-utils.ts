@@ -17,6 +17,7 @@ import {
 export type WindowInfo = {
   handle: BigInt;
   name: string;
+  missing?: boolean;
 };
 
 export type ActivateWindowResult = "activated" | "missing" | "failed";

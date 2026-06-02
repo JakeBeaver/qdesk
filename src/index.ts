@@ -120,7 +120,11 @@ startListening({
           name: binding.name,
           type: "missing",
         });
-        bindings.delete(chord);
+        bindings.reportMissing(chord);
+        setScreenHue("remove");
+        setTimeout(() => {
+          setScreenHue("off");
+        }, 50);
       } else if (result === "activated") {
         logSwitch({
           chord,
@@ -158,7 +162,7 @@ console.log("  CLI overrides: -a <combo>, -d <combo>");
 
 for (const [chord, window] of bindings.entries()) {
   if (!checkIfWindowExists(window.handle)) {
-    bindings.delete(chord);
+    bindings.reportMissing(chord);
   }
 }
 

@@ -35,6 +35,12 @@ export class KeyBindings {
     save(this.bindings);
   }
 
+  reportMissing(chord: string): void {
+    const info = this.bindings.get(chord);
+    if (info) {
+      info.missing = true;
+    }
+  }
   delete(chord: string): boolean {
     const output = this.bindings.delete(chord);
     if (output) {
