@@ -25,6 +25,101 @@ export type StartListeningOptions = {
   onChord: (chord: string, stopPropagating: () => void) => void;
 };
 
+const VK_TOKEN_TO_CODE: Record<string, number> = {
+  backspace: 0x08,
+  tab: 0x09,
+  clear: 0x0c,
+  enter: 0x0d,
+  return: 0x0d,
+  pause: 0x13,
+  capslock: 0x14,
+  esc: VK_ESCAPE,
+  escape: VK_ESCAPE,
+  space: 0x20,
+  pageup: 0x21,
+  pagedown: 0x22,
+  end: 0x23,
+  home: 0x24,
+  left: 0x25,
+  up: 0x26,
+  right: 0x27,
+  down: 0x28,
+  printscreen: 0x2c,
+  prtsc: 0x2c,
+  snapshot: 0x2c,
+  insert: 0x2d,
+  delete: 0x2e,
+  num0: 0x60,
+  num1: 0x61,
+  num2: 0x62,
+  num3: 0x63,
+  num4: 0x64,
+  num5: 0x65,
+  num6: 0x66,
+  num7: 0x67,
+  num8: 0x68,
+  num9: 0x69,
+  num_mul: 0x6a,
+  num_add: 0x6b,
+  num_sub: 0x6d,
+  num_dec: 0x6e,
+  num_div: 0x6f,
+};
+
+const VK_CODE_TO_TOKEN = new Map<number, string>(
+  Object.entries(VK_TOKEN_TO_CODE).map(([token, code]) => [code, token]),
+);
+VK_CODE_TO_TOKEN.set(VK_ESCAPE, "esc");
+VK_CODE_TO_TOKEN.set(0x0d, "enter");
+VK_CODE_TO_TOKEN.set(0x2c, "printscreen");
+
+const MODIFIER_TOKENS = new Set([
+  "ctrl",
+  "control",
+  "alt",
+  "shift",
+  "win",
+  "meta",
+]);
+
+function normalizeKeyToken(rawKey: string): string | null {
+  const key = rawKey.trim().toLowerCase();
+  if (!key) {
+    return null;
+  }
+
+  if (/^[0-9a-z]$/.test(key)) {
+    return key;
+  }
+
+  if (/^f([1-9]|1[0-9]|2[0-4])$/.test(key)) {
+    return key;
+  }
+
+  if (VK_TOKEN_TO_CODE[key] !== undefined) {
+    return VK_CODE_TO_TOKEN.get(VK_TOKEN_TO_CODE[key]) ?? key;
+  }
+
+  return null;
+}
+
+function keyTokenToVk(key: string): number {
+  if (/^[0-9]$/.test(key)) {
+    return key.charCodeAt(0);
+  }
+  if (/^[a-z]$/.test(key)) {
+    return key.toUpperCase().charCodeAt(0);
+  }
+
+  const functionMatch = /^f([1-9]|1[0-9]|2[0-4])$/.exec(key);
+  if (functionMatch) {
+    const fn = Number(functionMatch[1]);
+    return 0x70 + (fn - 1);
+  }
+
+  return VK_TOKEN_TO_CODE[key] ?? -1;
+}
+
 export function normalizeChord(chord: string): string | null {
   chord = chord.trim().toLowerCase();
   const parts = chord
@@ -32,18 +127,18 @@ export function normalizeChord(chord: string): string | null {
     .map((part) => part.trim().toLowerCase())
     .filter(Boolean);
 
-  if (parts.length < 2) {
+  if (parts.length === 0) {
     return null;
   }
 
-  const key = parts[parts.length - 1];
-  if (!/^[0-9a-z]$/.test(key) && !/^f([1-9]|1[0-9]|2[0-4])$/.test(key)) {
+  const key = normalizeKeyToken(parts[parts.length - 1]);
+  if (!key) {
     return null;
   }
 
   const modifiers = new Set(parts.slice(0, -1));
   for (const mod of modifiers) {
-    if (!["ctrl", "control", "alt", "shift", "win", "meta"].includes(mod)) {
+    if (!MODIFIER_TOKENS.has(mod)) {
       return null;
     }
   }
@@ -62,11 +157,7 @@ export function normalizeChord(chord: string): string | null {
     normalizedMods.push("win");
   }
 
-  if (normalizedMods.length === 0) {
-    return null;
-  }
-
-  return `${normalizedMods.join("+")}+${key}`;
+  return normalizedMods.length > 0 ? `${normalizedMods.join("+")}+${key}` : key;
 }
 
 export function parseHotkeyCombo(combo: string): {
@@ -79,11 +170,15 @@ export function parseHotkeyCombo(combo: string): {
     .map((part) => part.trim().toLowerCase())
     .filter(Boolean);
 
-  if (parts.length < 2) {
+  if (parts.length === 0) {
     return null;
   }
 
-  const key = parts[parts.length - 1];
+  const key = normalizeKeyToken(parts[parts.length - 1]);
+  if (!key) {
+    return null;
+  }
+
   const modifiers = parts.slice(0, -1);
 
   let modMask = 0;
@@ -107,20 +202,9 @@ export function parseHotkeyCombo(combo: string): {
     }
   }
 
-  let vk = -1;
-  if (/^[0-9]$/.test(key)) {
-    vk = key.charCodeAt(0);
-  } else if (/^[a-z]$/.test(key)) {
-    vk = key.toUpperCase().charCodeAt(0);
-  } else {
-    const functionMatch = /^f([1-9]|1[0-9]|2[0-4])$/.exec(key);
-    if (functionMatch) {
-      const fn = Number(functionMatch[1]);
-      vk = 0x70 + (fn - 1);
-    }
-  }
+  const vk = keyTokenToVk(key);
 
-  if (vk < 0 || modMask === 0) {
+  if (vk < 0) {
     return null;
   }
 
@@ -149,6 +233,12 @@ function vkToKeyToken(vkCode: number): string | null {
   if (vkCode >= 0x70 && vkCode <= 0x87) {
     return `f${vkCode - 0x6f}`;
   }
+
+  const named = VK_CODE_TO_TOKEN.get(vkCode);
+  if (named) {
+    return named;
+  }
+
   return null;
 }
 
@@ -172,9 +262,5 @@ export function buildCurrentChord(vkCode: number): string | null {
     parts.push("win");
   }
 
-  if (parts.length === 0) {
-    return null;
-  }
-
-  return `${parts.join("+")}+${key}`;
+  return parts.length > 0 ? `${parts.join("+")}+${key}` : key;
 }
