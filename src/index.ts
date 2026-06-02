@@ -148,9 +148,12 @@ function printBindings(): void {
   if (bindings.size === 0) {
     console.log("  (none)");
   } else {
+    const maxBindingLength = Math.max(
+      ...Array.from(bindings.entries()).map(([chord]) => chord.length),
+    );
     for (const [chord, window] of bindings.entries()) {
       console.log(
-        `  ${chord} -> ${window.missing ? "❓" : ""} "${window.name}"`,
+        `  ${chord.padEnd(maxBindingLength)} ->${window.missing ? "❓" : "  "} "${window.name}"`,
       );
     }
   }

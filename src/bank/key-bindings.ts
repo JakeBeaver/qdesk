@@ -56,8 +56,10 @@ export class KeyBindings {
     return this.bindings.size;
   }
 
-  entries(): IterableIterator<[string, WindowInfo]> {
-    return this.bindings.entries();
+  entries(): [string, WindowInfo][] {
+    return [...this.bindings.entries()].sort(([chordA], [chordB]) =>
+      chordA.localeCompare(chordB),
+    );
   }
 }
 
