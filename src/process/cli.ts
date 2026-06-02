@@ -24,7 +24,7 @@ function hasCliFlag(flag: string): boolean {
 function getPackageVersion(): string {
   try {
     const packageJson = readFileSync(
-      new URL("../package.json", import.meta.url),
+      new URL("../../package.json", import.meta.url),
       "utf8",
     );
     const parsed = JSON.parse(packageJson) as { version?: string };
