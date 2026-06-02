@@ -149,7 +149,9 @@ function printBindings(): void {
     console.log("  (none)");
   } else {
     for (const [chord, window] of bindings.entries()) {
-      console.log(`  ${chord} -> "${window.name}"`);
+      console.log(
+        `  ${chord} -> ${window.missing ? "❓" : ""} "${window.name}"`,
+      );
     }
   }
   console.log("");
